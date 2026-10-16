@@ -1,0 +1,14 @@
+finance-llm-merged/
+finance-lora/
+out/
+train.jsonl
+val.jsonl
+train.log
+nohup.out
+__pycache__/
+.env
+.venv/
+node_modules/
+.vercel/
+patch_page.py
+rm_sample.py
