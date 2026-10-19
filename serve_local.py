@@ -1,11 +1,21 @@
 """Local web server: serves index.html + facts.js and forwards /api/chat to your vLLM model. No dependencies."""
-import json, http.server, urllib.request, os
+import json, http.server, urllib.request, urllib.parse, os
+import pricing
 ROOT = os.path.dirname(os.path.abspath(__file__))
 LLM = os.environ.get("LLM_URL", "http://localhost:8000/v1").rstrip("/")
 MODEL = os.environ.get("LLM_MODEL", "finance-llm")
 PORT = int(os.environ.get("PORT", "3000"))
 class H(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *a, **k): super().__init__(*a, directory=ROOT, **k)
+    def do_GET(self):
+        if self.path.startswith("/api/price"):
+            qs = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            try: out = pricing.lookup(qs.get("q", [""])[0], qs.get("cur", ["$"])[0])
+            except Exception as e: out = {"error": "failed", "detail": str(e)[:200]}
+            data = json.dumps(out, ensure_ascii=False).encode()
+            self.send_response(200); self.send_header("Content-Type", "application/json; charset=utf-8"); self.send_header("Content-Length", str(len(data))); self.end_headers(); self.wfile.write(data)
+        else:
+            super().do_GET()
     def do_POST(self):
         if self.path != "/api/chat": return self.send_error(404)
         try:

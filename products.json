@@ -1,0 +1,4 @@
+{
+  "_help": "Optional overrides only. Automatic free-search discovery is enabled by pricing.py; you do not need to add product names or URLs. Add entries here only to pin trusted products/stores or aliases. Search engines and store pages may block automated access, and price extraction only works on pages exposing supported structured price data.",
+  "products": []
+}

@@ -56,6 +56,41 @@
       emergency_fund_target: m(3 * out), months_to_emergency_fund: (sav > 0 && out > 0) ? String(Math.ceil(3 * out / sav)) : NA
     };
   }
+
+  // ---- purchase advice: compares a live price with the user's budget (added after v3; computeFacts unchanged)
+  function money(cur, n) { var r = Math.round(n), s = String(Math.abs(r)).replace(/\B(?=(\d{3})+(?!\d))/g, ','); return (r < 0 ? '-' : '') + cur + s; }
+  function computePurchase(b, o) {
+    var inc = b.income > 0 ? b.income : 0, out = 0, cur = b.currency;
+    (b.expenses || []).forEach(function (e) { out += e.amount; });
+    (b.bills || []).forEach(function (x) { out += x.amount * (FREQ[x.frequency] || 1); });
+    var sav = inc - out, goal = 0.2 * inc, price = o.price, after = sav - price, verdict;
+    if (inc <= 0) verdict = 'no_income'; else if (after >= goal) verdict = 'ok'; else if (after >= 0) verdict = 'stretch'; else verdict = 'wait';
+    var months = sav > 0 ? Math.ceil(price / sav) : null;
+    return {
+      item: o.name, store: o.store, stores: o.stores || 1, converted: !!o.converted, price: money(cur, price),
+      pct_of_income: inc > 0 ? Math.round(price / inc * 100) : 0, left_to_save: money(cur, sav), after_purchase: money(cur, after),
+      savings_target: money(cur, goal), verdict: verdict, months_to_save: months === null ? 'n/a' : String(months),
+      history: o.n_before > 0 && o.lowest_before ? (price <= o.lowest_before + 0.5 ? 'lowest' : 'above') : 'first',
+      lowest_before: o.lowest_before ? money(cur, o.lowest_before) : 'n/a'
+    };
+  }
+  function purchaseText(p) {
+    var L = ['I checked ' + p.store + ' just now: ' + p.item + ' costs ' + p.price + (p.converted ? ' (converted at an approximate exchange rate)' : '') + (p.stores > 1 ? ', the lowest of ' + p.stores + ' stores' : '') + '.'];
+    if (p.verdict === 'no_income') L.push('Add your monthly income so I can compare the price with your budget.');
+    else {
+      L.push('That is ' + p.pct_of_income + '% of your monthly income, and you have ' + p.left_to_save + ' left to save this month.');
+      if (p.verdict === 'ok') L.push('Paying now would leave ' + p.after_purchase + ', still above your 20% savings target of ' + p.savings_target + ', so it fits your budget.');
+      else if (p.verdict === 'stretch') L.push('Paying now would leave ' + p.after_purchase + ', below your 20% savings target of ' + p.savings_target + '. You can afford it, but it breaks your savings goal this month.');
+      else L.push(p.months_to_save === 'n/a' ? 'You are not saving anything this month, so this would have to come from money outside your budget. Waiting and saving first is the safer choice.' : 'That is more than you have left, so at this month\'s pace it would take about ' + p.months_to_save + ' months to save for it. Waiting and saving first is the safer choice.');
+    }
+    if (p.history === 'first') L.push('This is the first price I have recorded for it, so I cannot say whether it is a good price.');
+    else if (p.history === 'lowest') L.push('This is the lowest price I have recorded for it.');
+    else L.push('The lowest price I have recorded is ' + p.lowest_before + '.');
+    L.push('I only compare the price with your budget and cannot tell if a newer model is coming. This is general information, not financial advice.');
+    return L.join('\n');
+  }
+  root.computePurchase = computePurchase; root.purchaseText = purchaseText;
+  computeFacts.computePurchase = computePurchase; computeFacts.purchaseText = purchaseText;
   root.computeFacts = computeFacts;
   if (typeof module !== 'undefined') module.exports = computeFacts;
 })(typeof window !== 'undefined' ? window : globalThis);
