@@ -21,9 +21,38 @@ import {
   PermissionTier,
   AuditResult,
 } from '../types/finance';
+import {
+  computeFacts,
+  computePurchase,
+  purchaseText,
+  money,
+  pct,
+  ComputedFacts,
+  ComputedPurchase,
+} from './facts';
 
 // Configurable AI Provider Badge (can be updated to Gemini/Claude/etc. in future)
-export const AI_PROVIDER_BADGE = 'Mock provider (demo mode)';
+export const AI_PROVIDER_BADGE =
+  (typeof process !== 'undefined' && process.env?.VITE_AI_PROVIDER) ||
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_AI_PROVIDER) ||
+  'Mock provider (demo mode)';
+
+/**
+ * Product query cleaner ported from pricing.py clean_product_query
+ */
+export function cleanProductQuery(message: string): string {
+  let q = (message || '').trim().replace(/\s+/g, ' ');
+  const m = q.match(/\b(?:buy(?:ing)?|purchase|purchasing|get|afford|price of|cost of|prices? for|how much is|how much does)\s+(.+)/i);
+  if (m) q = m[1];
+  else if (q.split(' ').length > 8) return '';
+  q = q.split(/\s+(?:right now|now|today|should|can|could|or|because|if|and)\b|[?,.!;]/i)[0].trim();
+  q = q.replace(/^(?:an?|the|new|some|my|one)\s+/i, '');
+  q = q.replace(/^(?:an?|the|new|some|my|one)\s+/i, '');
+  q = q.replace(/\bi\s+(phone|pad|pod|mac)\b/gi, 'i$1');
+  q = q.replace(/\bmac\s+book\b/gi, 'macbook');
+  q = q.replace(/\bair\s+pods\b/gi, 'airpods');
+  return q.slice(0, 80);
+}
 
 /**
  * Single source of truth calculation engine for Financial Runway.
@@ -39,7 +68,7 @@ export function calculateFinancialRunway(
   monthlyIncome: number,
   spendingStyle: 'Frugal Saver' | 'Balanced' | 'Luxury Lover' = 'Balanced',
   subscriptions: Subscription[] = []
-): { financials: UserFinancials; days: RunwayDay[]; isShortfall: boolean; shortfallGap: number; shortfallDate?: string } {
+): { financials: UserFinancials; days: RunwayDay[]; isShortfall: boolean; shortfallGap: number; shortfallDate?: string; facts?: ComputedFacts } {
   const totalBaselineNeeded = daysToPayday * dailyBaseline;
   const safeToSpend = cash - committedBills - totalBaselineNeeded;
   const safeToday = safeToSpend > 0 ? Math.round((safeToSpend / Math.max(1, daysToPayday)) * 10) / 10 : 0;
@@ -59,6 +88,27 @@ export function calculateFinancialRunway(
     spendingStyle,
     subscriptions,
   };
+
+  // Run facts.js computeFacts engine for single source of truth verification
+  const pastDays = Math.max(1, 30 - daysToPayday);
+  const facts = computeFacts({
+    currency: '¥',
+    income: monthlyIncome,
+    day: pastDays,
+    dim: 30,
+    expenses: [
+      { category: 'Groceries', amount: Math.max(0, pastDays * dailyBaseline) },
+    ],
+    bills: [
+      { name: 'Committed Bills', amount: committedBills, frequency: 'Monthly', category: 'Housing' },
+      ...subscriptions.map((s) => ({
+        name: s.name,
+        amount: s.price,
+        frequency: 'Monthly',
+        category: s.category,
+      })),
+    ],
+  });
 
   // Generate day-by-day projected cash trajectory
   let runningCash = cash;
@@ -115,7 +165,7 @@ export function calculateFinancialRunway(
     });
   }
 
-  return { financials, days, isShortfall, shortfallGap, shortfallDate };
+  return { financials, days, isShortfall, shortfallGap, shortfallDate, facts };
 }
 
 // Default Alex Scenario (Safe Runway ¥175)
@@ -390,8 +440,8 @@ export const INITIAL_IMPORTED_TRANSACTIONS: ImportTransaction[] = [
  * Returns the current calculated runway state and daily projection.
  */
 export async function getRunway(customFinancials?: UserFinancials): Promise<RunwayData> {
-  // Simulate network roundtrip (600ms)
-  await new Promise((resolve) => setTimeout(resolve, 300));
+  // Simulate network roundtrip (200ms)
+  await new Promise((resolve) => setTimeout(resolve, 200));
 
   const base = customFinancials || DEFAULT_ALEX_FINANCIALS;
   const calculated = calculateFinancialRunway(
@@ -431,17 +481,82 @@ export async function checkPurchase(
   currentFinancials: UserFinancials = DEFAULT_ALEX_FINANCIALS,
   isColdWeather = false
 ): Promise<PurchaseCheckResult> {
-  await new Promise((resolve) => setTimeout(resolve, 400));
+  await new Promise((resolve) => setTimeout(resolve, 300));
 
   const safeToSpend = currentFinancials.safeToSpend;
-  const isAffordable = price <= safeToSpend && safeToSpend > 0;
-  const shortfallGap = price > safeToSpend ? Math.round(price - Math.max(0, safeToSpend)) : 0;
+  const cleanedItem = cleanProductQuery(item) || item;
+
+  // Attempt live price check from /api/price if server is running, with quick fallback
+  let liveOffer = {
+    name: cleanedItem,
+    price: price,
+    store: 'Campus Merchant',
+    stores: 1,
+    converted: false,
+    lowest_before: undefined as number | undefined,
+    n_before: 0,
+  };
+
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 1200);
+    const res = await fetch(`/api/price?q=${encodeURIComponent(cleanedItem)}&cur=¥`, {
+      signal: ctrl.signal,
+    }).catch(() => null);
+    clearTimeout(timer);
+
+    if (res && res.ok) {
+      const data = await res.json();
+      if (data && data.best && typeof data.best.price_user === 'number') {
+        liveOffer = {
+          name: data.product || cleanedItem,
+          price: data.best.price_user,
+          store: data.best.store || 'Market store',
+          stores: data.offers?.length || 1,
+          converted: !!data.best.converted,
+          lowest_before: data.history?.lowest_before,
+          n_before: data.history?.n_before || 0,
+        };
+      }
+    }
+  } catch {
+    // Graceful offline mock fallback
+  }
+
+  // Real facts.js budget calculations
+  const pastDays = Math.max(1, 30 - currentFinancials.daysToPayday);
+  const budget = {
+    currency: '¥',
+    income: currentFinancials.monthlyIncome,
+    day: pastDays,
+    dim: 30,
+    expenses: [
+      { category: 'Groceries', amount: pastDays * currentFinancials.dailyBaseline },
+    ],
+    bills: [
+      { name: 'Committed Bills', amount: currentFinancials.committedBills, frequency: 'Monthly', category: 'Housing' },
+      ...currentFinancials.subscriptions.map((s) => ({
+        name: s.name,
+        amount: s.price,
+        frequency: 'Monthly',
+        category: s.category,
+      })),
+    ],
+  };
+
+  const pFacts: ComputedPurchase = computePurchase(budget, liveOffer);
+  const factsAdvice = purchaseText(pFacts);
+
+  // Core runway and shortfall math
+  const effectivePrice = liveOffer.price;
+  const isAffordable = effectivePrice <= safeToSpend && safeToSpend > 0;
+  const shortfallGap = effectivePrice > safeToSpend ? Math.round(effectivePrice - Math.max(0, safeToSpend)) : 0;
 
   // Rule 2 Demo Presets:
   // "Work boots 60 yuan" as a Want -> "Spend more here (buy it for life)"
   const isWorkBootsDemo = item.toLowerCase().includes('boot') || item.toLowerCase().includes('work boot');
   // "900 yuan jacket" as a Want -> "Wait 24 hours"
-  const isExpensiveJacket = price >= 800 || item.toLowerCase().includes('jacket') || item.toLowerCase().includes('coat');
+  const isExpensiveJacket = effectivePrice >= 800 || item.toLowerCase().includes('jacket') || item.toLowerCase().includes('coat');
 
   let verdictChip: PurchaseCheckResult['verdictChip'] = 'Buy';
   let shouldBuy = true;
@@ -455,9 +570,9 @@ export async function checkPurchase(
     shouldBuy = true;
     verdictChip = 'Buy';
 
-    const secondHandPrice = Math.round(price * 0.6);
-    const adequatePrice = price;
-    const premiumPrice = Math.max(900, Math.round(price * 3.5));
+    const secondHandPrice = Math.round(effectivePrice * 0.6);
+    const adequatePrice = effectivePrice;
+    const premiumPrice = Math.max(900, Math.round(effectivePrice * 3.5));
 
     fundingPlan = [
       {
@@ -489,35 +604,36 @@ export async function checkPurchase(
 
     aiExplanation = `Essential items are never blocked. This purchase is funded from unused budget slack. Choosing an adequate or second-hand option keeps your runway positive until payday.`;
   } else if (needLevel === 'needed_soon') {
-    // NEEDED SOON: Timing based strictly on payday.
-    shouldBuy = isAffordable;
-    verdictChip = isAffordable ? 'Buy' : 'Wait until payday';
-    timingRecommendation = isAffordable
-      ? `Best timing: Safe to purchase today with ¥${Math.round(safeToSpend - price)} buffer remaining.`
+    // NEEDED SOON: Timing based strictly on payday & facts 20% savings verdict.
+    const fitsRunwayAndSavings = isAffordable && pFacts.verdict === 'ok';
+    shouldBuy = fitsRunwayAndSavings;
+    verdictChip = fitsRunwayAndSavings ? 'Buy' : 'Wait until payday';
+    timingRecommendation = fitsRunwayAndSavings
+      ? `Best timing: Safe to purchase today with ¥${Math.round(safeToSpend - effectivePrice)} buffer remaining.`
       : 'Wait until payday';
 
     fundingPlan = [
       {
         tier: 'second_hand',
-        label: `Refurbished/Second-hand (¥${Math.round(price * 0.7)})`,
-        price: Math.round(price * 0.7),
-        runwayAfter: safeToSpend - Math.round(price * 0.7),
-        isAffordable: safeToSpend - Math.round(price * 0.7) >= 0,
+        label: `Refurbished/Second-hand (¥${Math.round(effectivePrice * 0.7)})`,
+        price: Math.round(effectivePrice * 0.7),
+        runwayAfter: safeToSpend - Math.round(effectivePrice * 0.7),
+        isAffordable: safeToSpend - Math.round(effectivePrice * 0.7) >= 0,
         note: 'Available immediately without risking your baseline.',
       },
       {
         tier: 'adequate',
-        label: `New Standard (¥${price})`,
-        price,
-        runwayAfter: safeToSpend - price,
+        label: `New Standard (¥${effectivePrice})`,
+        price: effectivePrice,
+        runwayAfter: safeToSpend - effectivePrice,
         isAffordable,
         note: isAffordable ? 'Fully covered before next paycheck.' : 'Hold until payday to preserve emergency baseline.',
       },
     ];
 
-    aiExplanation = isAffordable
-      ? `This purchase is needed soon and fits within your safe-to-spend limit. You can complete it today without affecting bills.`
-      : `Cash runway is tight. Wait until payday to preserve your baseline food and bill commitments.`;
+    aiExplanation = fitsRunwayAndSavings
+      ? `This purchase is needed soon and fits within your safe-to-spend limit. You can complete it today without affecting bills (${pFacts.pct_of_income}% of monthly income).`
+      : `Cash runway is tight. At your current pace, saving for this takes ${pFacts.months_to_save} month(s). Wait until payday to preserve your baseline food and bill commitments.`;
   } else {
     // WANT: Discretionary purchase evaluation
     if (isWorkBootsDemo) {
@@ -525,10 +641,10 @@ export async function checkPurchase(
       verdictChip = 'Spend more here (buy it for life)';
       shouldBuy = true;
       aiExplanation = `A cheap pair costs less now but gets replaced often. Investing slightly more in durable boots fits your long-term budget and university transit needs.`;
-    } else if (!isAffordable || isExpensiveJacket) {
+    } else if (!isAffordable || isExpensiveJacket || pFacts.verdict === 'wait' || pFacts.verdict === 'stretch') {
       verdictChip = 'Wait 24 hours';
       shouldBuy = false;
-      aiExplanation = `This discretionary item reduces your runway buffer to ${safeToSpend - price < 0 ? 'a deficit' : 'near zero'} and sets back your ¥${currentFinancials.savingsGoal} savings goal. Waiting 24 hours prevents impulse stress.`;
+      aiExplanation = `This discretionary item reduces your runway buffer to ${safeToSpend - effectivePrice < 0 ? 'a deficit' : 'near zero'} and sets back your ¥${currentFinancials.savingsGoal} savings goal. Waiting 24 hours prevents impulse stress.`;
     } else {
       verdictChip = 'Buy';
       shouldBuy = true;
@@ -548,8 +664,8 @@ export async function checkPurchase(
 
   return {
     id: `chk-${Date.now()}`,
-    item,
-    price,
+    item: liveOffer.name,
+    price: liveOffer.price,
     needLevel,
     canAfford: isAffordable,
     shouldBuy,
@@ -581,7 +697,7 @@ export async function importData(
   duplicateNotice?: string;
   injectionFlagged?: boolean;
 }> {
-  await new Promise((resolve) => setTimeout(resolve, 500));
+  await new Promise((resolve) => setTimeout(resolve, 400));
 
   // Check for injection attempt in payload
   const injectionRegex = /(ignore\s+rules|transfer\s+2[,.]?000|system\s+prompt|admin\s+override)/i;
@@ -637,14 +753,19 @@ export async function importData(
  * Returns categorical breakdowns, bills vs income ratio, and reconciliation math.
  */
 export async function getInsights(month = 'October 2026'): Promise<InsightsData> {
-  await new Promise((resolve) => setTimeout(resolve, 350));
+  await new Promise((resolve) => setTimeout(resolve, 300));
+
+  // Computed from facts 50/30/20 guidelines
+  const totalIncome = 4000;
+  const totalBills = 325; // Bills (200) + Subscriptions (125)
+  const billsRatioPercent = Math.round((totalBills / totalIncome) * 1000) / 10; // 8.1% (<= 35% guideline)
 
   return {
     month,
-    totalIncome: 4000,
-    totalBills: 325, // Bills (200) + Subscriptions (125)
+    totalIncome,
+    totalBills,
     totalVariable: 840,
-    billsRatioPercent: 8.1, // 325 / 4000 = 8.1% (well below the 35% guideline)
+    billsRatioPercent,
     categories: [
       { category: 'Food & Groceries', amount: 480, color: '#0D5C56', isProtected: true, transactionCount: 24 },
       { category: 'Housing & Utilities', amount: 200, color: '#147D75', isProtected: true, transactionCount: 2 },
@@ -676,11 +797,9 @@ export async function getInsights(month = 'October 2026'): Promise<InsightsData>
  * and rule-based prompt injection shielding.
  */
 export async function sendChat(message: string, currentFinancials: UserFinancials): Promise<AgentMessage> {
-  await new Promise((resolve) => setTimeout(resolve, 450));
-
   const lower = message.toLowerCase();
 
-  // Rule-based injection filter
+  // Rule-based injection filter (Strict T4 Defense)
   if (lower.includes('ignore rules') || lower.includes('transfer 2,000') || lower.includes('transfer 2000')) {
     return {
       id: `msg-${Date.now()}`,
@@ -729,6 +848,36 @@ export async function sendChat(message: string, currentFinancials: UserFinancial
     };
   }
 
+  // Connect to real /api/chat with resilient fallback (Phase C integration)
+  try {
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 3500);
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [{ role: 'user', content: message }],
+      }),
+      signal: ctrl.signal,
+    }).catch(() => null);
+    clearTimeout(timeout);
+
+    if (res && res.ok) {
+      const data = await res.json();
+      if (data && data.text && typeof data.text === 'string' && data.text.trim().length > 0) {
+        return {
+          id: `msg-${Date.now()}`,
+          sender: 'agent',
+          text: data.text.trim(),
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          tier: 'T0',
+        };
+      }
+    }
+  } catch {
+    // Fall through to deterministic mock fallback
+  }
+
   // T0 Read / Informational: "Why was my runway lower today?"
   if (lower.includes('runway') || lower.includes('lower') || lower.includes('why')) {
     return {
@@ -741,6 +890,7 @@ export async function sendChat(message: string, currentFinancials: UserFinancial
   }
 
   // Default response
+  await new Promise((resolve) => setTimeout(resolve, 300));
   return {
     id: `msg-${Date.now()}`,
     sender: 'agent',
@@ -759,7 +909,7 @@ export async function approveAction(
   actionData: any,
   prevEntry: AuditLogEntry | null = null
 ): Promise<{ success: boolean; updatedAuditLog: AuditLogEntry }> {
-  await new Promise((resolve) => setTimeout(resolve, 300));
+  await new Promise((resolve) => setTimeout(resolve, 200));
 
   const actionText =
     actionData.type === 'transfer_savings'
@@ -786,6 +936,6 @@ export async function approveAction(
  * Fetches the verifiable tamper-evident security audit trail with verified SHA-256 hashes.
  */
 export async function getAuditLog(): Promise<AuditLogEntry[]> {
-  await new Promise((resolve) => setTimeout(resolve, 200));
+  await new Promise((resolve) => setTimeout(resolve, 150));
   return await buildInitialAuditChain();
 }
