@@ -1,0 +1,101 @@
+[
+  {
+    "id": "aud-001",
+    "timestamp": "2026-10-17 11:05",
+    "action": "Simulated Injection Attempt Blocked",
+    "tier": "T4",
+    "ruleUsed": "R-DEFENSE-PROMPT_INJECTION_SHIELD",
+    "result": "blocked",
+    "details": "Rule-based filter caught override string in simulated transfer instruction.",
+    "hash": "077e91ee8891a9f8921c2072a62af9f2d82588ed3ca9fd0a90941c96bbeeee7f",
+    "prevHash": "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"
+  },
+  {
+    "id": "aud-002",
+    "timestamp": "2026-10-18 14:10",
+    "action": "Sandbox Transfer ¥100 to Savings Pot",
+    "tier": "T3",
+    "ruleUsed": "R12-INTERNAL_SANDBOX_TRANSFER_CAP",
+    "result": "approved",
+    "details": "Transferred surplus funds from cash buffer to locked savings pot.",
+    "hash": "d24ee500f0e6d70fe8130a4d6ce9a94b0f5e9eeb5475db7c6996c8fe9ab11b1f",
+    "prevHash": "077e91ee8891a9f8921c2072a62af9f2d82588ed3ca9fd0a90941c96bbeeee7f"
+  },
+  {
+    "id": "aud-003",
+    "timestamp": "2026-10-19 18:30",
+    "action": "Propose Spotify Subscription Pause",
+    "tier": "T1",
+    "ruleUsed": "R04-OPTIONAL_EXPENSE_SUGGESTION",
+    "result": "approved",
+    "details": "Flagged 25% price increase alert on Spotify renewal.",
+    "hash": "ad72ef9455d864ef3a719e24f5625eaf26536e5823cc9931b2b24e26a5cd2b3e",
+    "prevHash": "d24ee500f0e6d70fe8130a4d6ce9a94b0f5e9eeb5475db7c6996c8fe9ab11b1f"
+  },
+  {
+    "id": "aud-004",
+    "timestamp": "2026-10-20 09:15",
+    "action": "Query Safe-to-Spend Runway",
+    "tier": "T0",
+    "ruleUsed": "R01-READONLY_BALANCE_PROJECTOR",
+    "result": "approved",
+    "details": "Queried runway calculation for 9 days to payday.",
+    "hash": "9057f1dc5f57d5a8deadb5331368cbcc1a12cad34db209f649afd6f1a3d61599",
+    "prevHash": "ad72ef9455d864ef3a719e24f5625eaf26536e5823cc9931b2b24e26a5cd2b3e"
+  },
+  {
+    "id": "aud-1792493503523-rpk7",
+    "timestamp": "2026-10-20 10:51",
+    "action": "Evaluate pre-purchase: \"Winter Jacket\" (¥150)",
+    "tier": "T0",
+    "ruleUsed": "R-PURCHASE-ESSENTIAL_EVALUATOR",
+    "result": "approved",
+    "hash": "866d905a0a64b0dd0cfa505aa27bd384db270062b53943f450e52935e47bb2b3",
+    "prevHash": "9057f1dc5f57d5a8deadb5331368cbcc1a12cad34db209f649afd6f1a3d61599",
+    "details": "Need: essential. Verdict: Buy. Never blocked."
+  },
+  {
+    "id": "aud-1792493503523-7g5n",
+    "timestamp": "2026-10-20 10:51",
+    "action": "User Overrode Verdict on \"Winter Jacket\" (¥900)",
+    "tier": "T2",
+    "ruleUsed": "R99-HUMAN_OVERRIDE_AUTONOMY",
+    "result": "overridden",
+    "hash": "b1cc41dc9d04505efae83821c338bed0e4f09a0b1876baf3d8f0fd46f026b886",
+    "prevHash": "866d905a0a64b0dd0cfa505aa27bd384db270062b53943f450e52935e47bb2b3",
+    "details": "User acknowledged wait guidance and chose to override. Action logged permanently."
+  },
+  {
+    "id": "aud-1792493503523-6jej",
+    "timestamp": "2026-10-20 10:51",
+    "action": "Transfer ¥300 to Savings Pot",
+    "tier": "T3",
+    "ruleUsed": "R12-INTERNAL_SANDBOX_TRANSFER_CAP",
+    "result": "approved",
+    "hash": "ef9617648000c2bd76af524ac5caacf33a6bfe8ca90e7baa7831f01ba1aa9332",
+    "prevHash": "b1cc41dc9d04505efae83821c338bed0e4f09a0b1876baf3d8f0fd46f026b886",
+    "details": "User approved transfer of ¥300 within daily cap. Used today: ¥300/¥500."
+  },
+  {
+    "id": "aud-1792493503523-bcc3",
+    "timestamp": "2026-10-20 10:51",
+    "action": "Blocked: Exceeds Daily Sandbox Cap",
+    "tier": "T3",
+    "ruleUsed": "R12-INTERNAL_SANDBOX_TRANSFER_CAP",
+    "result": "blocked",
+    "hash": "a290d796b2e8384194a629bb7844dc75e53e12673a8d9e588194cdf914e74cbd",
+    "prevHash": "ef9617648000c2bd76af524ac5caacf33a6bfe8ca90e7baa7831f01ba1aa9332",
+    "details": "Daily sandbox cap of ¥500 reached. Move of ¥300 blocked (already used ¥300 today)."
+  },
+  {
+    "id": "aud-1792493503523-4n9v",
+    "timestamp": "2026-10-20 10:51",
+    "action": "Prompt Injection Defense Blocked",
+    "tier": "T4",
+    "ruleUsed": "R-DEFENSE-PROMPT_INJECTION_SHIELD",
+    "result": "blocked",
+    "hash": "3a0fdb2c0ec57e19a8b603b57889d8bccc8f0fd84634c780594a1d5639b82c45",
+    "prevHash": "a290d796b2e8384194a629bb7844dc75e53e12673a8d9e588194cdf914e74cbd",
+    "details": "Rule-based filter caught attempt: Treated as data. No action taken."
+  }
+]
