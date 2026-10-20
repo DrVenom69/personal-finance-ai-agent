@@ -88,7 +88,24 @@ npm run lint
 npm run build
 ```
 
-### 2. Standalone Python Server (Classic UI + /api)
+### 2. Automated Tests (Vitest)
+
+Run the test suite in `web/`:
+
+```bash
+cd web
+npm test
+```
+
+The test suite validates:
+- **Runway Math**: Verifies `safe-to-spend` is exactly ¥175 in the baseline and -¥85 in the shortfall scenario.
+- **Essential Purchases**: Ensures Essential items are never blocked and provides 3 funding options (¥90 second-hand with ¥85 runway, ¥150 standard with ¥25 runway, and ¥900 premium flagged as unaffordable).
+- **Want Discretionary Purchases**: Confirms expensive items (¥900 jacket) trigger "Wait 24 hours" with the override flow, and durable items (boots) trigger "Spend more here (buy it for life)".
+- **Sandbox Transfer Limits**: Validates that a second ¥300 transfer is blocked by the ¥500 daily cap.
+- **Audit Hash Chain Integrity**: Verifies SHA-256 blockchain tamper detection via `verifyChain()`.
+- **Prompt Injection Defense**: Asserts that injection patterns (`ignore rules`, `transfer 2000`) are flagged in both chat and import, blocking unauthorized actions.
+
+### 3. Standalone Python Server (Classic UI + /api)
 
 ```bash
 python serve_local.py

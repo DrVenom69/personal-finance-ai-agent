@@ -55,6 +55,27 @@ export function cleanProductQuery(message: string): string {
 }
 
 /**
+ * Evaluates whether a T3 sandbox transfer is permitted under the daily cap.
+ */
+export function evaluateT3Transfer(
+  transferAmount: number,
+  currentMovedToday: number,
+  dailyCap = 500
+): { allowed: boolean; remainingCap: number; reason?: string } {
+  if (currentMovedToday + transferAmount > dailyCap) {
+    return {
+      allowed: false,
+      remainingCap: Math.max(0, dailyCap - currentMovedToday),
+      reason: `Daily sandbox cap of ¥${dailyCap} reached. Cannot move ¥${transferAmount}. Already moved ¥${currentMovedToday} today.`,
+    };
+  }
+  return {
+    allowed: true,
+    remainingCap: dailyCap - (currentMovedToday + transferAmount),
+  };
+}
+
+/**
  * Single source of truth calculation engine for Financial Runway.
  * Formula: Safe-to-Spend = Cash on Hand - Committed Bills - (Days to Payday * Daily Baseline)
  */
