@@ -2,7 +2,7 @@
 
 > **"Code does the math, the model writes the words."**
 
-ProAct Finance combines a high-performance React web application with a deterministic financial calculation engine (`facts.js`), live store price discovery (`pricing.py`), cryptographic audit trails (SHA-256 blockchain), and optional LLM integration.
+ProAct Finance combines a high-performance React web application with a deterministic financial calculation engine (`facts.js`), live store price discovery (`pricing.py`), cryptographic audit trails (SHA-256 hash chain), and optional LLM integration.
 
 All figures, savings targets, and purchase affordability verdicts are computed deterministically in code—the AI model only communicates the verified figures into natural explanations, eliminating hallucinations.
 
@@ -30,7 +30,7 @@ All figures, savings targets, and purchase affordability verdicts are computed d
 │   └── SECURITY_SELF_ASSESSMENT.md  # T0-T4 tiers, blocked actions, known risks & limits
 ├── evidence/                        # Empirical test & execution artifacts
 │   ├── execution-report.md          # 7-scenario execution verification
-│   ├── audit-log-sample.json        # Exported SHA-256 audit blockchain
+│   ├── audit-log-sample.json        # Exported SHA-256 audit hash chain
 │   └── test-output.txt              # npm install, test, and build console log
 ├── facts.js                         # Universal deterministic finance engine (50/30/20 & purchase math)
 ├── facts_cli.js                     # CLI wrapper for testing facts.js
@@ -122,7 +122,7 @@ The test suite validates:
 - **Essential Purchases**: Ensures Essential items are never blocked and provides 3 funding options (¥90 second-hand with ¥85 runway, ¥150 standard with ¥25 runway, and ¥900 premium flagged as unaffordable).
 - **Want Discretionary Purchases**: Confirms expensive items (¥900 jacket) trigger "Wait 24 hours" with the override flow, and durable items (boots) trigger "Spend more here (buy it for life)".
 - **Sandbox Transfer Limits**: Validates that a second ¥300 transfer is blocked by the ¥500 daily cap.
-- **Audit Hash Chain Integrity**: Verifies SHA-256 blockchain tamper detection via `verifyChain()`.
+- **Audit Hash Chain Integrity**: Verifies SHA-256 hash chain tamper-evident detection via `verifyChain()`.
 - **Prompt Injection Defense**: Asserts that injection patterns (`ignore rules`, `transfer 2000`) are flagged in both chat and import, blocking unauthorized actions.
 
 ### 3. Standalone Python Server (Classic UI + /api)

@@ -38,7 +38,7 @@ The following text diagram illustrates the architectural flow of ProAct Finance 
 |   |   +-------------------------------------------------------------------------------------+   |
 |   |                                                                                         |   |
 |   |   +-------------------------------------------------------------------------------------+   |
-|   |   |                        Web Crypto SHA-256 Audit Blockchain                          |   |
+|   |   |                        Web Crypto SHA-256 Audit Hash Chain                            |   |
 |   |   |    - Genesis block link: 000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b6... |   |
 |   |   |    - computeEntryHash() + verifyChain() live tamper detection                       |   |
 |   |   +-------------------------------------------------------------------------------------+   |
@@ -183,7 +183,7 @@ User Input / Agent Action
 | **50/30/20 Budget Guidelines** | **Computed by code from demo data** | Evaluated via `facts.js` (`computeFacts`). |
 | **Purchase Affordability Check** | **Real** | Evaluated via `computePurchase` comparing against 20% savings target. |
 | **Product Pricing & Discovery** | **Fallback only, no live price service deployed** | `pricing.py` contains standalone scraper logic; in production web deployment, offline fallback is used. |
-| **Audit Blockchain Verification** | **Real** | Real Web Crypto SHA-256 hash chaining with live tamper detection (`verifyChain`). |
+| **Audit Hash Chain Verification** | **Real** | Real Web Crypto SHA-256 hash chaining with live tamper-evident detection (`verifyChain`). |
 | **Prompt Injection Defense** | **Rule-based filter (exact phrases)** | Regular expression filter intercepting exact override commands. |
 | **AI Provider Badge** | **Configurable** | Default `"Mock provider (demo mode)"`; switches dynamically if `VITE_AI_PROVIDER` is set. |
 | **Bank Import & Duplicate Merge** | **Simulated** | Demonstrates transaction deduplication and payload filtering on mock data. |

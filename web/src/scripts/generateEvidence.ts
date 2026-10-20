@@ -269,7 +269,7 @@ This document presents empirical execution evidence collected directly from the 
 ## Scenario 7: Cryptographic Audit Trail Verification & Tamper Detection
 
 ### Inputs
-- Linked SHA-256 blockchain with ${auditChain.length} verified sequential entries linked to Genesis Block \`000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f\`.
+- Linked SHA-256 hash chain with ${auditChain.length} verified sequential entries linked to Genesis Block \`000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f\`.
 
 ### Engine Execution & Outputs
 1. **Original Chain Verification**:

@@ -323,7 +323,7 @@ export async function createAuditEntry(
 }
 
 /**
- * Recomputes every hash from genesis to verify the blockchain integrity.
+ * Recomputes every hash from genesis to verify the SHA-256 hash chain integrity.
  */
 export async function verifyChain(chain: AuditLogEntry[]): Promise<{ isValid: boolean; brokenAtId?: string }> {
   if (!chain || chain.length === 0) return { isValid: true };
