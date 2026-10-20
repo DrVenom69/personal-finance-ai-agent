@@ -548,7 +548,7 @@ export async function checkPurchase(
   const factsAdvice = purchaseText(pFacts);
 
   // Core runway and shortfall math
-  const effectivePrice = liveOffer.price;
+  const effectivePrice = price > 0 ? price : liveOffer.price;
   const isAffordable = effectivePrice <= safeToSpend && safeToSpend > 0;
   const shortfallGap = effectivePrice > safeToSpend ? Math.round(effectivePrice - Math.max(0, safeToSpend)) : 0;
 
@@ -566,7 +566,7 @@ export async function checkPurchase(
   let aiExplanation = '';
 
   if (needLevel === 'essential') {
-    // ESSENTIAL: Never blocked! Generate 3 funding options. Never show a "wait" message.
+    // ESSENTIAL: Never blocked! Whatever facts.js says, Essential never returns wait or block.
     shouldBuy = true;
     verdictChip = 'Buy';
 
@@ -597,15 +597,15 @@ export async function checkPurchase(
         label: `Premium (¥${premiumPrice})`,
         price: premiumPrice,
         runwayAfter: safeToSpend - premiumPrice,
-        isAffordable: false,
-        note: 'Not affordable without cutting food or missing bills.',
+        isAffordable: safeToSpend - premiumPrice >= 0,
+        note: safeToSpend - premiumPrice >= 0 ? 'Affordable with reduced buffer.' : 'Not affordable without cutting food or missing bills.',
       },
     ];
 
     aiExplanation = `Essential items are never blocked. This purchase is funded from unused budget slack. Choosing an adequate or second-hand option keeps your runway positive until payday.`;
   } else if (needLevel === 'needed_soon') {
-    // NEEDED SOON: Timing based strictly on payday & facts 20% savings verdict.
-    const fitsRunwayAndSavings = isAffordable && pFacts.verdict === 'ok';
+    // NEEDED SOON: Timing based strictly on payday & safe-to-spend runway.
+    const fitsRunwayAndSavings = isAffordable;
     shouldBuy = fitsRunwayAndSavings;
     verdictChip = fitsRunwayAndSavings ? 'Buy' : 'Wait until payday';
     timingRecommendation = fitsRunwayAndSavings
@@ -632,16 +632,16 @@ export async function checkPurchase(
     ];
 
     aiExplanation = fitsRunwayAndSavings
-      ? `This purchase is needed soon and fits within your safe-to-spend limit. You can complete it today without affecting bills (${pFacts.pct_of_income}% of monthly income).`
+      ? `This purchase is needed soon and fits within your safe-to-spend limit. You can complete it today without affecting bills.`
       : `Cash runway is tight. At your current pace, saving for this takes ${pFacts.months_to_save} month(s). Wait until payday to preserve your baseline food and bill commitments.`;
   } else {
-    // WANT: Discretionary purchase evaluation
+    // WANT: Discretionary purchase evaluation decided by safe-to-spend and goal impact
     if (isWorkBootsDemo) {
       // Rule 2: "Work boots 60 yuan" as a Want -> "Spend more here (buy it for life)"
       verdictChip = 'Spend more here (buy it for life)';
       shouldBuy = true;
       aiExplanation = `A cheap pair costs less now but gets replaced often. Investing slightly more in durable boots fits your long-term budget and university transit needs.`;
-    } else if (!isAffordable || isExpensiveJacket || pFacts.verdict === 'wait' || pFacts.verdict === 'stretch') {
+    } else if (!isAffordable || isExpensiveJacket || effectivePrice > safeToSpend) {
       verdictChip = 'Wait 24 hours';
       shouldBuy = false;
       aiExplanation = `This discretionary item reduces your runway buffer to ${safeToSpend - effectivePrice < 0 ? 'a deficit' : 'near zero'} and sets back your ¥${currentFinancials.savingsGoal} savings goal. Waiting 24 hours prevents impulse stress.`;
@@ -665,7 +665,7 @@ export async function checkPurchase(
   return {
     id: `chk-${Date.now()}`,
     item: liveOffer.name,
-    price: liveOffer.price,
+    price: effectivePrice,
     needLevel,
     canAfford: isAffordable,
     shouldBuy,
