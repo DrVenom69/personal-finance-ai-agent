@@ -48,14 +48,14 @@ To maintain full transparency, here is the exact breakdown of real calculations 
 
 | Feature | Status | Details |
 | :--- | :--- | :--- |
-| **Runway & Safe-to-Spend Math** | **Real** | Computed deterministically via `calculateFinancialRunway` (`Cash - Committed Bills - Days × Baseline`). |
-| **50/30/20 Budget Guidelines** | **Real** | Computed via `facts.js` / `facts.ts` (`computeFacts`). Calculates needs, wants, savings rate, and 0–100 financial health score. |
+| **Runway & Safe-to-Spend Math** | **Computed by code from demo data** | Computed deterministically via `calculateFinancialRunway` (`Cash - Committed Bills - Days × Baseline`). |
+| **50/30/20 Budget Guidelines** | **Computed by code from demo data** | Computed via `facts.js` / `facts.ts` (`computeFacts`). Calculates needs, wants, savings rate, and 0–100 financial health score. |
 | **Purchase Affordability Check** | **Real** | Computed via `computePurchase`. Compares after-purchase savings directly against 20% savings target to derive exact verdicts (`ok`, `stretch`, `wait`). |
-| **Product Pricing & Discovery** | **Real / Fallback** | `pricing.py` searches and extracts structured JSON-LD/meta prices, verifies robots.txt, normalizes currencies via live FX, with offline fallback. |
+| **Product Pricing & Discovery** | **Fallback only, no live price service deployed** | Scraper and discovery logic exists in `pricing.py`, but no live `/api/price` service is deployed in production; app uses offline pricing fallback. |
 | **Cryptographic Audit Trail** | **Real** | Every log entry is hashed with Web Crypto API `crypto.subtle` SHA-256, chained to genesis block `000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f` with live tamper detection. |
 | **AI Conversational Chat (`/chat`)** | **Hybrid** | Calls `/api/chat` (vLLM or Anthropic API) when configured. Instantly falls back to deterministic rule-based assistant if offline, unconfigured, or timed out. |
 | **AI Provider Badge** | **Configurable** | Defaults to `Mock provider (demo mode)` requiring **no internet and no API key**. Displays active provider only when `VITE_AI_PROVIDER` is set. |
-| **Prompt Injection Defense** | **Real** | Rule-based security shield catches override patterns (`ignore rules`, `transfer 2000`) before data reaches any model or database. |
+| **Prompt Injection Defense** | **Rule-based filter (exact phrases)** | Rule-based security shield catches override patterns (`ignore rules`, `transfer 2000`) before data reaches any model or database. |
 | **Bank / SMS Import** | **Simulated** | Demonstrates multi-channel import, rule-based duplicate detection/merging, and untrusted payload filtering. |
 | **Money Movement & Bill Pay** | **Simulated** | T3 sandbox transfers (capped at ¥500/day) and T4 draft bill payment with interactive PIN challenge modal. |
 
