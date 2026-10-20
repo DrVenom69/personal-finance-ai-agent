@@ -1,0 +1,6 @@
+{
+  "name": "ProAct Finance",
+  "description": "Personal finance AI agent providing pre-spend guidance, safe-to-spend runway math, and tiered permission guardrails.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

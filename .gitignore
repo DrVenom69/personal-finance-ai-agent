@@ -9,6 +9,10 @@ __pycache__/
 .env
 .venv/
 node_modules/
+dist/
+web/dist/
 .vercel/
+.aistudio/
+*.db
 patch_page.py
 rm_sample.py
