@@ -8,36 +8,56 @@ All figures, savings targets, and purchase affordability verdicts are computed d
 
 ---
 
+## Documentation & Evidence
+
+- **[Technical Architecture Documentation](docs/TECHNICAL_DOCUMENTATION.md)**: System architecture text diagram, safe-to-spend formula, need levels, permission gate, and LLM fallback specification.
+- **[Security Self-Assessment & Risk Analysis](docs/SECURITY_SELF_ASSESSMENT.md)**: Real implementation analysis of T0–T4 permission tiers, hard enforcement boundaries, blocked actions list, and known risk limits.
+- **[Empirical Execution Evidence](evidence/)**:
+  - [Execution Report](evidence/execution-report.md): Detailed inputs, outputs, and rules applied for all 7 verified scenarios.
+  - [Cryptographic Audit Log Sample](evidence/audit-log-sample.json): Exported SHA-256 chained audit entries.
+  - [Test & Build Output Log](evidence/test-output.txt): Captured console log of `npm install`, `npm test` (Vitest), and `npm run build`.
+
+---
+
 ## Folder Layout
 
 ```text
 .
-├── api/                     # Vercel serverless backend
-│   └── chat.js              # Serverless LLM proxy (supports vLLM and Anthropic)
-├── facts.js                 # Universal deterministic finance engine (50/30/20 & purchase math)
-├── facts_cli.js             # CLI wrapper for testing facts.js
-├── pricing.py               # Live product pricing scraper & discovery (DuckDuckGo / Brave)
-├── products.json            # Pinned product URLs and store overrides
-├── serve_local.py           # Lightweight local Python server (serves web app + /api)
-├── index.html               # Classic standalone single-file dashboard
-├── vercel.json              # Vercel build & route deployment configuration
-├── web/                     # Modern React UI (ProAct Finance)
-│   ├── index.html           # React SPA entry point
-│   ├── package.json         # React 19, Tailwind CSS v4, Lucide, Motion, Vite
-│   ├── vite.config.ts       # Vite bundling and dev proxy configuration
+├── api/                             # Vercel serverless backend
+│   └── chat.js                      # Serverless LLM proxy (supports vLLM and Anthropic)
+├── docs/                            # In-depth architectural & security specifications
+│   ├── TECHNICAL_DOCUMENTATION.md   # System diagram, safe-to-spend formula, facts engine
+│   └── SECURITY_SELF_ASSESSMENT.md  # T0-T4 tiers, blocked actions, known risks & limits
+├── evidence/                        # Empirical test & execution artifacts
+│   ├── execution-report.md          # 7-scenario execution verification
+│   ├── audit-log-sample.json        # Exported SHA-256 audit blockchain
+│   └── test-output.txt              # npm install, test, and build console log
+├── facts.js                         # Universal deterministic finance engine (50/30/20 & purchase math)
+├── facts_cli.js                     # CLI wrapper for testing facts.js
+├── pricing.py                       # Live product pricing scraper & discovery (DuckDuckGo / Brave)
+├── products.json                    # Pinned product URLs and store overrides
+├── serve_local.py                   # Lightweight local Python server (serves web app + /api)
+├── index.html                       # Classic standalone single-file dashboard
+├── vercel.json                      # Vercel build & route deployment configuration
+├── web/                             # Modern React UI (ProAct Finance)
+│   ├── index.html                   # React SPA entry point
+│   ├── package.json                 # React 19, Tailwind CSS v4, Lucide, Motion, Vitest, Vite
+│   ├── vite.config.ts               # Vite bundling and dev proxy configuration
 │   └── src/
-│       ├── App.tsx          # Main application wrapper
-│       ├── components/      # Modular UI screens (Home, Purchase Check, Insights, Agent, Security)
-│       ├── context/         # React FinanceContext state management
-│       ├── services/        # Service layer
-│       │   ├── api.ts       # Centralized API service with offline fallbacks
-│       │   └── facts.ts     # TypeScript port of facts.js single-source-of-truth
-│       └── types/           # TypeScript domain definitions
-├── wechat_server.py         # Optional WeChat assistant bridge
-├── train.py                 # LoRA fine-tuning training script
-├── gen_data.py              # Training dataset generator (uses node + facts.js)
-├── eval.py                  # Evaluation benchmark script
-└── sample_preview.jsonl     # Sample synthetic dataset preview
+│       ├── App.tsx                  # Main application wrapper
+│       ├── components/              # Modular UI screens (Home, Purchase Check, Insights, Agent, Security)
+│       ├── context/                 # React FinanceContext state management
+│       ├── scripts/                 # Evidence generation scripts
+│       ├── services/                # Service layer
+│       │   ├── api.ts               # Centralized API service with offline fallbacks
+│       │   ├── api.test.ts          # Vitest test suite
+│       │   └── facts.ts             # TypeScript port of facts.js single-source-of-truth
+│       └── types/                   # TypeScript domain definitions
+├── wechat_server.py                 # Optional WeChat assistant bridge
+├── train.py                         # LoRA fine-tuning training script
+├── gen_data.py                      # Training dataset generator (uses node + facts.js)
+├── eval.py                          # Evaluation benchmark script
+└── sample_preview.jsonl             # Sample synthetic dataset preview
 ```
 
 ---
@@ -90,7 +110,7 @@ npm run build
 
 ### 2. Automated Tests (Vitest)
 
-Run the test suite in `web/`:
+Run the automated test suite in `web/`:
 
 ```bash
 cd web
@@ -117,21 +137,49 @@ Open [http://localhost:3000](http://localhost:3000) to view the classic single-f
 
 ## How to Deploy to Vercel
 
-The project includes a root `vercel.json` configured for single-command deployment:
+The project is pre-configured with a root `vercel.json` file that instructs Vercel how to build the React application and route API requests:
 
-```bash
-vercel
+```json
+{
+  "buildCommand": "cd web && npm install && npm run build",
+  "outputDirectory": "web/dist",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
 ```
 
-Vercel automatically executes:
-```bash
-cd web && npm install && npm run build
-```
-and serves the production SPA from `web/dist`, while serverless functions under `api/` (such as `api/chat.js`) remain accessible under `/api/*`.
+### Option A: Deploy via Vercel CLI
+
+1. Install the Vercel CLI (if not already installed):
+   ```bash
+   npm i -g vercel
+   ```
+2. Run deployment from the repository root:
+   ```bash
+   vercel
+   ```
+3. To deploy directly to production:
+   ```bash
+   vercel --prod
+   ```
+
+### Option B: Deploy via GitHub & Vercel Dashboard
+
+1. Push the `ui-merge` branch to GitHub and merge into `main` (or deploy directly from `ui-merge`).
+2. Log in to [vercel.com](https://vercel.com) and click **"Add New Project"**.
+3. Import the `FINTECH` repository.
+4. Leave **Root Directory** as `./` (the root).
+5. Vercel will automatically detect `vercel.json` and set:
+   - **Build Command**: `cd web && npm install && npm run build`
+   - **Output Directory**: `web/dist`
+   - **Functions**: Serverless handlers in `api/` (e.g. `api/chat.js`) are automatically deployed.
+6. Click **Deploy**.
 
 ### Optional Environment Variables
 
-If connecting to a live language model:
+If connecting to a live language model in Vercel:
 - `LLM_URL`: Base URL of OpenAI-compatible model server (e.g. `http://host:8000/v1` or vLLM).
 - `LLM_MODEL`: Model name (default `finance-llm`).
 - `LLM_KEY`: Optional Bearer authentication token.
